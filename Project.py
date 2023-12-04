@@ -1,9 +1,13 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox,ttk
 import sqlite3  # For regular expression validation
 import re
+import datetime
+from datetime import timedelta
 import csv
-conn = sqlite3.connect("Users1.db")
+
+
+conn = sqlite3.connect("Users9.db")
 
 class golf_cart:
 
@@ -53,16 +57,47 @@ class golf_cart:
         tk.Button(root, text="Exit", command=self.root.destroy).grid(row=8, column=1, columnspan=2, pady=20)
 
 
-   def submit(self):
 
+   def setup_db_tables(conn):
+       with conn:
+           conn.execute('''CREATE TABLE IF NOT EXISTS Users (
+                               user_id TEXT PRIMARY KEY, 
+                               first_name TEXT, 
+                               last_name TEXT, 
+                               user_class TEXT, 
+                               email TEXT, 
+                               phone TEXT, 
+                               password_hash TEXT)''')
+           conn.execute('''CREATE TABLE IF NOT EXISTS GolfCarts (
+                               cart_id TEXT PRIMARY KEY,
+                               plate_number TEXT,
+                               college TEXT)''')
+           conn.execute('''CREATE TABLE IF NOT EXISTS Reservations (
+                                      reservation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                      user_id TEXT,
+                                      cart_id TEXT,
+                                      start_time DATETIME,
+                                      end_time DATETIME,
+                                      FOREIGN KEY(user_id) REFERENCES Users(user_id),
+                                      FOREIGN KEY(cart_id) REFERENCES GolfCarts(cart_id))''')
+   def submit(self):
+       id_length = len(self.student_id_var.get())
        # Validate input
        if not self.validate_input():
           return
+       if id_length != 10 and id_length != 6:
+           messagebox.showerror("Error", "the Student ID must be 10 digits for Student or 6 ")
+           return
+       if self.user_class_var.get() == 'Student':
+           if id_length != 10:
+               messagebox.showerror("Error", "Student ID must be 10 digits long")
+               return
+       else:
+           if id_length != 6:
+               messagebox.showerror("Error", "Faculty/Employee ID must be 6 digits long")
+               return
 
-       id_length = len(self.student_id_var.get())
-       if id_length != 10 and id_length !=6 :
-          messagebox.showerror("Error", "the Student ID must be 10 digits for Student or 6 ")
-          return
+
         # Hash the password (In a real-world scenario, you would use a stronger hash function)
 
        hashed_password = hash(self.password_var.get())
@@ -70,10 +105,10 @@ class golf_cart:
         # Check if the user is already registered (you would replace this with a database check)
        if self.is_user_registered():
             messagebox.showerror("Error", "User already registered")
-            return False
+            return
        else:
             self.save_to_database(hashed_password)
-            messagebox.showinfo("Success", "User registered successfully")
+
         # Display a success message
        #messagebox.showinfo("Success", "User registered successfully")
        self.open_login_window()
@@ -102,10 +137,9 @@ class golf_cart:
 
    def is_user_registered(self):
 
-       conn = sqlite3.connect("Users1.db")
        cursor = conn.cursor()
        try:
-          cursor.execute("SELECT ID FROM COMPANY WHERE user_class=?",(self.user_class_var.get(),))
+          cursor.execute("SELECT user_id FROM COMPANY WHERE user_class=?",(self.user_class_var.get(),))
           user_data =cursor.fetchone()
           print(user_data)
           if user_data and self.student_id_var.get() == user_data[0]:
@@ -117,16 +151,16 @@ class golf_cart:
 
 
    def save_to_database(self,hashed_password):
-       conn = sqlite3.connect("Users1.db")
+
        try:
-         query = "INSERT INTO COMPANY(ID, first_name, last_name, user_class, email, phone, password) VALUES(?,?,?,?,?,?,?)"
+         query = "INSERT INTO COMPANY(user_id, first_name, last_name, user_class, email, phone, password_hash) VALUES(?,?,?,?,?,?,?)"
          data = (
            self.student_id_var.get(), self.first_name_var.get(), self.last_name_var.get(),
            self.user_class_var.get(), self.email_var.get(), self.phone_var.get(), hashed_password
          )
          conn.execute(query, data)
          conn.commit()
-
+         messagebox.showinfo("Success", "User registered successfully")
          print("Saving to database:")
          print("First Name:", self.first_name_var.get())
          print("Last Name:", self.last_name_var.get())
@@ -160,11 +194,11 @@ class golf_cart:
        self.password_var = tk.StringVar()
 
         # Create labels and entry widgets for user ID and password
-       tk.Label(self.root1, text="User ID:").grid(row=0, column=0, padx=10, pady=5)
-       tk.Entry(self.root1, textvariable=self.user_id_var).grid(row=0, column=1, padx=10, pady=5)
+       tk.Label(self.root1, text="User ID:", font=("Arial", 18)).grid(row=1, column=1, padx=10, pady=5)
+       tk.Entry(self.root1, textvariable=self.user_id_var).grid(row=1, column=2, padx=10, pady=5)
 
-       tk.Label(self.root1, text="Password:").grid(row=1, column=0, padx=10, pady=5)
-       tk.Entry(self.root1, show="*", textvariable=self.password_var).grid(row=1, column=1, padx=10, pady=5)
+       tk.Label(self.root1, text="Password:", font=("Arial", 18)).grid(row=2, column=1, padx=10, pady=5)
+       tk.Entry(self.root1, show="*", textvariable=self.password_var).grid(row=2, column=2, padx=10, pady=5)
 
        tk.Button(self.root1, text="Submit", command=self.submit1).grid(row=3, column=0, columnspan=2, pady=10)
 
@@ -173,19 +207,19 @@ class golf_cart:
    def submit1(self):
        #self.Admin_window()
        hashh = hash(self.password_var.get())
-       conn = sqlite3.connect("Users1.db")
        if not self.user_id_var.get() or not self.password_var.get():
            messagebox.showerror("Error", "All fields must be filled")
        else:
            print(hashh)
            cursor = conn.cursor()
            try:
-              cursor.execute("SELECT password,user_class FROM COMPANY where ID=?", (self.user_id_var.get(),))
+              cursor.execute("SELECT password_hash,user_class FROM COMPANY where user_id=?", (self.user_id_var.get(),))
               user_data = cursor.fetchone()
               print(user_data)
               if user_data and str(hashh) == user_data[0]:
                   messagebox.showinfo("Login Success", "Successfully logging in")
-                  if user_data[1] == "Student" and len(self.student_id_var.get())==10:
+
+                  if user_data[1] == "Student" or user_data[1] == "Faculity" and len(self.student_id_var.get())==10:
                       self.root1.destroy()
                       self.User_window()
                   else:
@@ -203,15 +237,124 @@ class golf_cart:
 
 
    def User_window(self):
+       self.master = tk.Tk()
+       self.master.title("User Window")
+       self.master.geometry("500x400")
+       self.master.iconbitmap("C:\\Users\\User\\Downloads\\golf_cart_icon_138526.ico")
+       self.tabControl = tk.ttk.Notebook(self.master)
+
+       # Tab 1: Reserve a Cart
+       self.tab1 = tk.Frame(self.tabControl)
+       self.tabControl.add(self.tab1, text="Reserve a Cart")
+
+       colleges = ["CCIS", "Business", "Sciences","Politics"]
+       tk.Label(self.tab1, text="Select College:").pack(padx=10, pady=5)
+       self.college_combobox = ttk.Combobox(self.tab1, values=colleges)
+       self.college_combobox.pack()
+       self.start_time_label = tk.Label(self.tab1, text="Start Time & Date:")
+       self.start_time_label.pack()
+       self.start_time_entry = tk.Entry(self.tab1)
+       self.start_time_entry.pack()
+
+       self.end_time_label = tk.Label(self.tab1, text="End Time & Date:")
+       self.end_time_label.pack()
+       self.end_time_entry = tk.Entry(self.tab1)
+       self.end_time_entry.pack()
+
+       self.reserve_button = tk.Button(self.tab1, text="Reserve", command=self.reserve_cart)
+       self.reserve_button.pack(pady=10)
+
+       self.logout_button_tab1 = tk.Button(self.tab1, text="Logout", command=self.logout)
+       self.logout_button_tab1.pack(pady=10)
+
+       # Tab 2: View my Reservations
+       self.tab2 = tk.Frame(self.tabControl)
+       self.tabControl.add(self.tab2, text="View my Reservations")
+
+       self.reservation_listbox = tk.Listbox(self.tab2)
+       self.reservation_listbox.pack(pady=10)
+
+       self.show_button = tk.Button(self.tab2, text="Show Reservations", command=self.show_reservations)
+       self.show_button.pack(pady=10)
+
+       self.logout_button_tab2 = tk.Button(self.tab2, text="Logout", command=self.logout)
+       self.logout_button_tab2.pack(pady=10)
+
+       self.tabControl.pack(expand=1, fill="both")
+       self.master.mainloop()
 
 
        print("your in User window")
+
+   def reserve_cart(self):
+       college = self.college_combobox.get()
+       start_time = self.start_time_entry.get()
+       end_time = self.end_time_entry.get()
+
+       if not all([college,start_time,end_time]):
+           messagebox.showerror("Error", "All fields must be filled")
+           return
+       if not re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$",  start_time):
+           messagebox.showerror("Error", "Invalid date format")
+           return
+       if not re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", end_time):
+           messagebox.showerror("Error", "Invalid date format")
+           return
+       start_time = datetime.strptime(self.start_time_entry.get(), "%Y-%m-%d %H:%M")
+       end_time = datetime.strptime(self.end_time_entry.get(), "%Y-%m-%d %H:%M") # strptime to convert the string to date
+       reservation_period = end_time - start_time
+
+       if (
+               (reservation_period > timedelta(minutes=30) and self.user_class_var.get() == "student") or  # timedelta to compare to or the + to the time
+               (reservation_period > timedelta(hours=1) and self.user_class_var.get() == "employee") or
+               (reservation_period > timedelta(hours=1, minutes=30) and self.user_class_var.get() == "faculty")
+       ):
+           tk.messagebox.showerror("Error", "Reservation period exceeds the allowed limit.")
+       else:
+           # Add logic to reserve the cart and log the transaction
+           try:
+              cursor = conn.cursor()
+              cursor.execute('''SELECT id FROM golf_carts1
+                                                WHERE college = ? AND id NOT IN (
+                                                    SELECT cart_id FROM Reservations 
+                                                    WHERE start_time < ? AND end_time > ?)''',
+                             (self.college_list.get(), self.end_time_entry.get(), self.start_time_entry.get()))
+              available_carts = cursor.fetchall()
+              if available_carts:
+                  cursor.execute('''INSERT INTO Reservations 
+                                                        (user_id, cart_id, start_time, end_time) 
+                                                        VALUES (?, ?, ?, ?)''',(self.user_id_var.get(), available_carts[0][0], self.start_time_entry.get(), self.end_time_entry.get()))
+                  messagebox.showinfo("Success", "Cart reserved successfully")
+
+              else:
+                  messagebox.showerror("Error", "No carts available for the selected time")
+           except sqlite3.Error as e:
+               messagebox.showerror("Database Error", str(e))
+
+
+
+
+   def show_reservations(self):
+       cursor = conn.cursor()
+       cursor.execute('''SELECT reservation_id, cart_id, start_time, end_time 
+                                        FROM Reservations WHERE user_id = ?''', (self.user_id_var.get(),))
+       reservations = cursor.fetchall()
+       for res in reservations:
+           self.reservation_listbox.insert(tk.END,
+                                           f"Reservation {res[0]}: Cart {res[1]}, From {res[2]} To {res[3]}")
+
+   def logout(self):
+       print("k")
+
+   def log_transaction(self):
+       print("k")
+
 
 
    def Admin_window(self):
 
        print("your in Admin window")
-       conn1 = sqlite3.connect('golf_cart_database.db')
+       #conn1 = sqlite3.connect('golf_cart_database.db')
 
        self.root2 = tk.Tk()
        self.root2.iconbitmap("C:\\Users\\User\\Downloads\\golf_cart_icon_138526.ico")
@@ -236,8 +379,7 @@ class golf_cart:
        backup_button.grid(row=4, column=0, columnspan=2, pady=10)
 
    def add_golf_cart(self):
-       conn1= sqlite3.connect("golf_cart1.db")
-       cursor = conn1.cursor()
+       cursor = conn.cursor()
 
 
        if not self.plate_number or not self.college:
@@ -245,20 +387,25 @@ class golf_cart:
            return
 
         # Insert the data into the database
-       insert ='INSERT INTO golf_carts1 (plate_number, college , ID) VALUES (?, ?, ?)'
-       value = (self.plate_number.get(),self.college.get(),self.user_id_var.get())
-       cursor.execute(insert,value)
-       conn1.commit()
-       self.user_id_var.set("")
-       self.college.set("")
-       self.plate_number.set("")
+       try:
+          insert ='INSERT INTO golf_carts1 (plate_number, college , ID) VALUES (?, ?, ?)'
+          value = (self.plate_number.get(),self.college.get(),self.user_id_var.get())
+          cursor.execute(insert,value)
+          conn.commit()
 
-       messagebox.showinfo('Success', 'Golf cart information added successfully.')
+          self.user_id_var.set("")
+          self.college.set("")
+          self.plate_number.set("")
+          messagebox.showinfo('Success', 'Golf cart information added successfully.')
+       except sqlite3.IntegrityError:
+           messagebox.showerror("Error", "This cart ID already exists")
+
+
+
 
    def backup_database(self):
-       conn1 = sqlite3.connect('golf_cart_database.db')
-       cursor = conn1.cursor()
-       cursor.execute('SELECT * FROM golf_carts')
+       cursor = conn.cursor()
+       cursor.execute('SELECT * FROM golf_carts1')
        data = cursor.fetchall()
 
        with open('backup.csv', 'w', newline='') as csvfile:
@@ -271,7 +418,8 @@ class golf_cart:
 
    def logout(self):
        self.root2.destroy()
-        ##self._init_(self)
+       newRoot=tk.Tk()
+       self._init_(newRoot)
 
 root = tk.Tk()
 
@@ -281,6 +429,3 @@ root = tk.Tk()
 golf_cart1 = golf_cart(root)
 # Run the Tkinter event loop
 root.mainloop()
-#saad
-#hhhhhhhh
-#kuku
