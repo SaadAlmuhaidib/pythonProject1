@@ -11,7 +11,7 @@ conn = sqlite3.connect("Users9.db")
 
 class golf_cart:
 
-   def _init_(self,root):
+   def __init__(self,root):
         self.root = root
         self.root.title("Sign Up")
         #self.root.configure(bg="#543454")
@@ -318,7 +318,7 @@ class golf_cart:
                                                 WHERE college = ? AND id NOT IN (
                                                     SELECT cart_id FROM Reservations 
                                                     WHERE start_time < ? AND end_time > ?)''',
-                             (self.college_list.get(), self.end_time_entry.get(), self.start_time_entry.get()))
+                             (self.college_combobox.get(), self.end_time_entry.get(), self.start_time_entry.get()))
               available_carts = cursor.fetchall()
               if available_carts:
                   cursor.execute('''INSERT INTO Reservations 
@@ -336,9 +336,9 @@ class golf_cart:
 
    def show_reservations(self):
        cursor = conn.cursor()
-       cursor.execute('''SELECT reservation_id, cart_id, start_time, end_time 
-                                        FROM Reservations WHERE user_id = ?''', (self.user_id_var.get(),))
-       reservations = cursor.fetchall()
+       reservations=list( cursor.execute('''SELECT reservation_id, cart_id, start_time, end_time 
+                                        FROM Reservations WHERE user_id = ?''', (self.user_id_var.get(),)))
+
        for res in reservations:
            self.reservation_listbox.insert(tk.END,
                                            f"Reservation {res[0]}: Cart {res[1]}, From {res[2]} To {res[3]}")
