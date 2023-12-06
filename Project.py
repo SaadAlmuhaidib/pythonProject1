@@ -11,6 +11,7 @@ import hashlib
 
 conn = sqlite3.connect("Users9.db")
 
+
 class golf_cart:
 
    def __init__(self,root):
@@ -70,12 +71,11 @@ class golf_cart:
                                email TEXT, 
                                phone TEXT, 
                                password_hash TEXT)''')
-           conn.execute('''CREATE TABLE IF NOT EXISTS GolfCarts (
-                               cart_id TEXT PRIMARY KEY,
-                               plate_number TEXT,
-                               college TEXT)''')
-           conn.execute('''CREATE TABLE IF NOT EXISTS Reservations (
-                                      reservation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+           conn.execute('''CREATE TABLE IF NOT EXISTS GolfCarts1 (
+                                          cart_id TEXT ,
+                                          plate_number TEXT,
+                                          college TEXT)''')
+           conn.execute('''CREATE TABLE IF NOT EXISTS Reservations1 (
                                       user_id TEXT,
                                       cart_id TEXT,
                                       start_time DATETIME,
@@ -317,13 +317,13 @@ class golf_cart:
            # Add logic to reserve the cart and log the transaction
            try:
               cursor = conn.cursor()
-              cursor.execute('''SELECT id FROM golf_carts1
-                                                WHERE college = ? AND id NOT IN (
-                                                    SELECT cart_id FROM Reservations 
+              cursor.execute('''SELECT cart_id FROM GolfCarts1
+                                                WHERE college = ? AND cart_id NOT IN (
+                                                    SELECT cart_id FROM Reservations1 
                                                     WHERE start_time < ? AND end_time > ?)''',(self.college_combobox.get(),self.start_time_entry.get(),self.end_time_entry.get()))
               available_carts = cursor.fetchall()
               if available_carts:
-                  cursor.execute('''INSERT INTO Reservations 
+                  cursor.execute('''INSERT INTO Reservations1 
                                                         (user_id, cart_id, start_time, end_time) 
                                                         VALUES (?, ?, ?, ?)''',(self.user_id_var.get(), available_carts[0][0], self.start_time_entry.get(), self.end_time_entry.get()))
                   messagebox.showinfo("Success", "Cart reserved successfully")
@@ -337,19 +337,23 @@ class golf_cart:
 
 
    def show_reservations(self):
-       cursor = conn.cursor()
-       cursor.execute('''SELECT reservation_id, cart_id, start_time, end_time 
-                                        FROM Reservations WHERE user_id = ?''', (self.user_id_var.get(),))
-       reservations = cursor.fetchall()
-       for res in reservations:
-           self.reservation_listbox.insert(tk.END,
-                                           f"Reservation {res[0]}: Cart {res[1]}, From {res[2]} To {res[3]}")
-
+       try:
+          cursor = conn.cursor()
+          cursor.execute('''SELECT  cart_id, start_time, end_time 
+                                        FROM Reservations1 WHERE user_id = ?''', (self.user_id_var.get(),))
+          reservations = cursor.fetchall()
+          for res in reservations:
+              self.reservation_listbox.insert(tk.END,
+                                           f"Reservation: Cart {res[0]}, From {res[1]} To {res[2]}")
+       except sqlite3.Error as e:
+          messagebox.showerror("Database Error", str(e))
    def logout(self):
-       print("k")
+       self.master.destroy()
+       newRoot = tk.Tk()
+       self.__init__(newRoot)
 
-   def log_transaction(self):
-       print("k")
+
+
 
 
 
@@ -374,7 +378,7 @@ class golf_cart:
        create_button = tk.Button(self.root2, text='Create', command=self.add_golf_cart)
        create_button.grid(row=2, column=0, columnspan=2, pady=10)
 
-       logout_button = tk.Button(self.root2, text='Logout', command=self.logout)
+       logout_button = tk.Button(self.root2, text='Logout', command=self.logout2)
        logout_button.grid(row=3, column=0, columnspan=2, pady=10)
 
        backup_button = tk.Button(self.root2, text='Backup', command=self.backup_database)
@@ -384,30 +388,29 @@ class golf_cart:
        cursor = conn.cursor()
 
 
-       if not self.plate_number or not self.college:
+       if not self.plate_number and not self.college:
            messagebox.showwarning('Warning', 'Please enter both plate number and college.')
            return
 
         # Insert the data into the database
-       try:
-          insert ='INSERT INTO golf_carts1 (plate_number, college , ID) VALUES (?, ?, ?)'
-          value = (self.plate_number.get(),self.college.get(),self.user_id_var.get())
-          cursor.execute(insert,value)
-          conn.commit()
 
-          self.user_id_var.set("")
-          self.college.set("")
-          self.plate_number.set("")
-          messagebox.showinfo('Success', 'Golf cart information added successfully.')
-       except sqlite3.IntegrityError:
-           messagebox.showerror("Error", "This cart ID already exists")
+       insert ='INSERT INTO GolfCarts1 (plate_number, college , cart_id) VALUES (?, ?, ?)'
+       value = (self.plate_number.get(),self.college.get(),self.user_id_var.get())
+       cursor.execute(insert,value)
+       conn.commit()
+
+       self.user_id_var.set("")
+       self.college.set("")
+       self.plate_number.set("")
+       messagebox.showinfo('Success', 'Golf cart information added successfully.')
+
 
 
 
 
    def backup_database(self):
        cursor = conn.cursor()
-       cursor.execute('SELECT * FROM golf_carts1')
+       cursor.execute('SELECT * FROM GolfCarts1')
        data = cursor.fetchall()
 
        with open('backup.csv', 'w', newline='') as csvfile:
@@ -418,10 +421,10 @@ class golf_cart:
 
        messagebox.showinfo('Backup', 'Database backed up successfully.')
 
-   def logout(self):
+   def logout2(self):
        self.root2.destroy()
        newRoot=tk.Tk()
-       self._init_(newRoot)
+       self.__init__(newRoot)
 
 root = tk.Tk()
 
