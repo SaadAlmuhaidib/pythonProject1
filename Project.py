@@ -3,8 +3,10 @@ from tkinter import messagebox,ttk
 import sqlite3  # For regular expression validation
 import re
 import datetime
+from datetime import datetime
 from datetime import timedelta
 import csv
+import hashlib
 
 
 conn = sqlite3.connect("Users9.db")
@@ -100,7 +102,7 @@ class golf_cart:
 
         # Hash the password (In a real-world scenario, you would use a stronger hash function)
 
-       hashed_password = hash(self.password_var.get())
+       hashed_password = hashlib.sha256(self.password_var.get().encode()).hexdigest()
 
         # Check if the user is already registered (you would replace this with a database check)
        if self.is_user_registered():
@@ -206,12 +208,13 @@ class golf_cart:
 
    def submit1(self):
        #self.Admin_window()
-       hashh = hash(self.password_var.get())
+       hashh = hashlib.sha256(self.password_var.get().encode()).hexdigest()
        if not self.user_id_var.get() or not self.password_var.get():
            messagebox.showerror("Error", "All fields must be filled")
        else:
            print(hashh)
            cursor = conn.cursor()
+           print(self.user_id_var.get())
            try:
               cursor.execute("SELECT password_hash,user_class FROM COMPANY where user_id=?", (self.user_id_var.get(),))
               user_data = cursor.fetchone()
@@ -317,8 +320,7 @@ class golf_cart:
               cursor.execute('''SELECT id FROM golf_carts1
                                                 WHERE college = ? AND id NOT IN (
                                                     SELECT cart_id FROM Reservations 
-                                                    WHERE start_time < ? AND end_time > ?)''',
-                             (self.college_combobox.get(), self.end_time_entry.get(), self.start_time_entry.get()))
+                                                    WHERE start_time < ? AND end_time > ?)''',(self.college_combobox.get(),self.start_time_entry.get(),self.end_time_entry.get()))
               available_carts = cursor.fetchall()
               if available_carts:
                   cursor.execute('''INSERT INTO Reservations 
@@ -336,9 +338,9 @@ class golf_cart:
 
    def show_reservations(self):
        cursor = conn.cursor()
-       reservations=list( cursor.execute('''SELECT reservation_id, cart_id, start_time, end_time 
-                                        FROM Reservations WHERE user_id = ?''', (self.user_id_var.get(),)))
-
+       cursor.execute('''SELECT reservation_id, cart_id, start_time, end_time 
+                                        FROM Reservations WHERE user_id = ?''', (self.user_id_var.get(),))
+       reservations = cursor.fetchall()
        for res in reservations:
            self.reservation_listbox.insert(tk.END,
                                            f"Reservation {res[0]}: Cart {res[1]}, From {res[2]} To {res[3]}")
